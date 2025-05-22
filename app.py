@@ -44,6 +44,8 @@ class ChoreSchedulerApp:
 
         tk.Button(root, text="Find Optimal Path", command=self.find_path).pack(pady=5)
 
+        tk.Button(root, text="How is the optimal path found?", command=self.show_dijkstra_info).pack(pady=2)
+
         self.fig, self.ax = plt.subplots(figsize=(7, 5))
         self.canvas = FigureCanvasTkAgg(self.fig, master=root)
         self.canvas.get_tk_widget().pack(fill="both", expand=True)
@@ -106,9 +108,21 @@ class ChoreSchedulerApp:
         start = self.start_var.get()
         end = self.end_var.get()
         try:
+            all_paths = list(nx.all_simple_paths(G, source=start, target=end))
+            ranked_paths = []
+            for p in all_paths:
+                total = sum(G.nodes[n]['time'] for n in p)
+                ranked_paths.append((p, total))
+            ranked_paths.sort(key=lambda x: x[1])
+            num_paths = len(ranked_paths)
             path = nx.shortest_path(G, source=start, target=end, weight='weight')
             total_time = sum(G.nodes[n]['time'] for n in path)
-            messagebox.showinfo("Optimal Path", f"{' -> '.join(path)}\nTotal time: {total_time} minutes")
+            ranking_msg = "Ranking of all paths (by total time):\n"
+            for i, (p, t) in enumerate(ranked_paths, 1):
+                ranking_msg += f"{i}. {' -> '.join(p)} (Total time: {t} min)\n"
+            ranking_msg += "\nTotal time is computed as the sum of the times for each chore in the path."
+            messagebox.showinfo("Optimal Path", f"{' -> '.join(path)}\nTotal time: {total_time} minutes\nPaths found: {num_paths}")
+            messagebox.showinfo("Path Rankings", ranking_msg)
             self.draw_graph(G, path, start, end)
         except nx.NetworkXNoPath:
             messagebox.showerror("No Path", "No path between selected chores. Please check your dependencies.")
@@ -132,6 +146,17 @@ class ChoreSchedulerApp:
         nx.draw_networkx_edge_labels(G, pos, edge_labels=edge_labels, font_color='blue', ax=self.ax)
         self.ax.set_title("Optimal Chore Schedule Path")
         self.canvas.draw()
+
+    def show_dijkstra_info(self):
+        message = (
+            "The optimal path is found using Dijkstra's algorithm.\n\n"
+            "Dijkstra's algorithm finds the path between the selected start and end chores that minimizes the total time, "
+            "taking into account all dependencies and the time required for each chore.\n\n"
+            "In this app, each dependency is represented as a directed edge, and the 'cost' to move from one chore to the next "
+            "is the time required for the next chore. Dijkstra's algorithm explores all possible paths and guarantees that the "
+            "path with the lowest total time is found."
+        )
+        messagebox.showinfo("How is the optimal path found?", message)
 
 if __name__ == "__main__":
     root = tk.Tk()
